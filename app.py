@@ -1,42 +1,36 @@
 import streamlit as st
-from fpdf import FPDF # Linha ESSENCIAL para definir a classe FPDF
+from fpdf import FPDF 
+import io # Importamos a biblioteca io para o buffer de bytes
 
-# --- 1. CONFIGURAÇÃO DA CLASSE PDF CUSTOMIZADA ---
+# --- 1. CONFIGURAÇÃO DA CLASSE PDF CUSTOMIZADA (mantida) ---
 
 class PDF(FPDF):
     """Classe customizada para gerar o PDF com seu layout específico."""
     
     def __init__(self, titulo, autor):
-        # Inicializa a classe base FPDF
         super().__init__('P', 'mm', 'A4') 
         self.doc_titulo = titulo
         self.doc_autor = autor
-        # Define a margem esquerda e direita (10mm)
         self.set_left_margin(10)
         self.set_right_margin(10)
 
     def header(self):
-        """Define o cabeçalho do documento (Título, Autor e Linha Cinza)."""
-        
-        # Título: Times New Roman, 18pt, Negrito, Itálico
+        """Define o cabeçalho do documento."""
         self.set_font('Times', 'BI', 18) 
         w = self.get_string_width(self.doc_titulo) + 6
-        self.set_x((210 - w) / 2) # Centraliza o título
-        self.set_text_color(0, 0, 0) # Preto para o título
+        self.set_x((210 - w) / 2) 
+        self.set_text_color(0, 0, 0) 
         self.cell(w, 9, self.doc_titulo, 0, 1, 'C')
         
-        # Autor: Times New Roman, 10pt, Itálico, Cinza #666666
         self.set_font('Times', 'I', 10)
-        self.set_text_color(102, 102, 102) # RGB (102, 102, 102) para #666666
+        self.set_text_color(102, 102, 102) 
         self.cell(0, 5, self.doc_autor, 0, 1, 'C')
         self.ln(5) 
         
-        # Linha Cinza (Anotações Gerais - Divisória)
-        self.set_draw_color(192, 192, 192) # Cinza Claro
+        self.set_draw_color(192, 192, 192) 
         self.set_line_width(0.1) 
-        # CORREÇÃO: Usar self.get_y() para a coordenada Y
         self.line(10, self.get_y(), 200, self.get_y())
-        self.ln(5) # Espaço para anotações
+        self.ln(5) 
 
     def set_line_style(self, color_rgb, width=0.1):
         """Define a cor e espessura da linha."""
@@ -46,25 +40,26 @@ class PDF(FPDF):
     def criar_pauta(self, verso):
         """Adiciona a pauta (linha preta, linha vermelha e texto do verso)."""
         
-        # 1. Linha de Notas (Preta: #000000, 0.5px -> aprox. 0.13mm)
+        # 1. Linha de Notas (Preta)
         self.set_line_style((0, 0, 0), width=0.13)
         self.line(10, self.get_y(), 200, self.get_y())
-        self.ln(5) # Espaço abaixo da linha preta
+        self.ln(5) 
         
-        # 2. Linha de Verso (Vermelha: #FF0000, 0.5px -> aprox. 0.13mm)
+        # 2. Linha de Verso (Vermelha)
         self.set_line_style((255, 0, 0), width=0.13)
         self.line(10, self.get_y(), 200, self.get_y())
-        self.ln(2) # Espaço mínimo para o texto
+        self.ln(2) 
 
         # 3. Texto do Verso
         self.set_font('Times', '', 10)
-        self.set_text_color(0, 0, 0) # Volta ao preto para o texto do verso
-        # Definimos o encoding como 'latin-1' para compatibilidade com fpdf2
-        self.multi_cell(0, 5, verso.encode('latin-1', 'replace').decode('latin-1'))
-        self.ln(8) # Espaço maior antes do próximo bloco/pauta
+        self.set_text_color(0, 0, 0) 
+        # Garante que o texto seja compatível com a codificação Latin-1
+        texto_seguro = verso.encode('latin-1', 'replace').decode('latin-1')
+        self.multi_cell(0, 5, texto_seguro)
+        self.ln(8) 
 
 
-# --- 2. CONFIGURAÇÃO DA INTERFACE STREAMLIT ---
+# --- 2. CONFIGURAÇÃO DA INTERFACE STREAMLIT (mantida) ---
 
 st.set_page_config(page_title="Music Notation Maker", layout="centered")
 
@@ -82,30 +77,21 @@ if st.button("Clique aqui para gerar o PDF"):
     
     # 3. GERAÇÃO DO PDF
     
-    # Inicializa o PDF, passando o título e o autor para a classe
     pdf = PDF(titulo, autor)
-    
-    # Adiciona a primeira página (isso chama o método header() automaticamente)
     pdf.add_page()
     
-    # Processa a letra
     versos = [v.strip() for v in letra.split('\n') if v.strip()]
     
     if not versos:
         st.warning("Por favor, cole a letra da música na caixa de texto acima.")
     else:
-        # Adiciona cada pauta
         for verso in versos:
             pdf.criar_pauta(verso)
             
-        # 4. Saída e Download (CORREÇÃO AQUI)
-        # output(dest='S') já retorna bytes. Não precisamos de .encode()
-        pdf_output = pdf.output(dest='S')
+        # 4. Saída e Download (CORREÇÃO CRÍTICA AQUI)
         
-        st.download_button(
-            label="Download do PDF Final",
-            data=pdf_output, # Já são bytes
-            file_name=f"{titulo.replace(' ', '_')}.pdf",
-            mime="application/pdf"
-        )
-        st.success("✅ Partitura gerada com sucesso! Clique no botão de download acima.")
+        # Cria um buffer de bytes na memória
+        buffer = io.BytesIO()
+        # Salva o PDF no buffer
+        buffer.write(pdf.output(dest='S'))
+        # Retorna ao início do buffer
