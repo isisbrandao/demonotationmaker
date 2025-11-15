@@ -11,10 +11,9 @@ class PDF(FPDF):
         super().__init__('P', 'mm', 'A4') 
         self.doc_titulo = titulo
         self.doc_autor = autor
-        # Adiciona a fonte Times New Roman (fontes padrão)
-        # Nota: fpdf2 usa fontes embutidas que simulam Times, I é itálico, B é negrito, etc.
-        # Não precisamos de arquivos .ttf, pois o fpdf2 já tem as métricas
-        
+        # Define a margem esquerda e direita (10mm)
+        self.set_left_margin(10)
+        self.set_right_margin(10)
 
     def header(self):
         """Define o cabeçalho do documento (Título, Autor e Linha Cinza)."""
@@ -35,7 +34,8 @@ class PDF(FPDF):
         # Linha Cinza (Anotações Gerais - Divisória)
         self.set_draw_color(192, 192, 192) # Cinza Claro
         self.set_line_width(0.1) 
-        self.line(10, self.get_x(), 200, self.get_x())
+        # CORREÇÃO: Usar self.get_y() para a coordenada Y
+        self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5) # Espaço para anotações
 
     def set_line_style(self, color_rgb, width=0.1):
@@ -59,7 +59,8 @@ class PDF(FPDF):
         # 3. Texto do Verso
         self.set_font('Times', '', 10)
         self.set_text_color(0, 0, 0) # Volta ao preto para o texto do verso
-        self.multi_cell(0, 5, verso)
+        # Definimos o encoding como 'latin-1' para compatibilidade com fpdf2
+        self.multi_cell(0, 5, verso.encode('latin-1', 'replace').decode('latin-1'))
         self.ln(8) # Espaço maior antes do próximo bloco/pauta
 
 
@@ -97,13 +98,13 @@ if st.button("Clique aqui para gerar o PDF"):
         for verso in versos:
             pdf.criar_pauta(verso)
             
-        # Salva o arquivo em memória para download
-        pdf_output = pdf.output(dest='S').encode('latin1')
+        # 4. Saída e Download (CORREÇÃO AQUI)
+        # output(dest='S') já retorna bytes. Não precisamos de .encode()
+        pdf_output = pdf.output(dest='S')
         
-        # 4. BOTÃO DE DOWNLOAD
         st.download_button(
             label="Download do PDF Final",
-            data=pdf_output,
+            data=pdf_output, # Já são bytes
             file_name=f"{titulo.replace(' ', '_')}.pdf",
             mime="application/pdf"
         )
