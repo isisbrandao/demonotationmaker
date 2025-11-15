@@ -2,7 +2,7 @@ import streamlit as st
 from fpdf import FPDF 
 import io 
 import sys
-import os # Importar a biblioteca os para verificar arquivos
+import os 
 
 # --- 1. CONFIGURAÇÃO DA CLASSE PDF CUSTOMIZADA ---
 
@@ -16,12 +16,11 @@ class PDF(FPDF):
         self.set_left_margin(10)
         self.set_right_margin(10)
         
-        # Variável para rastrear se o Calibri foi carregado com sucesso
         self.calibri_loaded = False 
 
         # Tenta carregar a fonte Calibri
         try:
-            # Verifica se os arquivos existem antes de tentar carregar
+            # Se você já carregou os arquivos .ttf no repositório, esta parte funcionará.
             if os.path.exists('Calibri.ttf'):
                 self.add_font('Calibri', '', 'Calibri.ttf')
                 if os.path.exists('CalibriB.ttf'):
@@ -30,7 +29,6 @@ class PDF(FPDF):
                     self.add_font('Calibri', 'I', 'CalibriI.ttf')
                 self.calibri_loaded = True
         except Exception as e:
-            # Em caso de falha no carregamento, o fallback é Times
             print(f"Erro ao carregar fonte Calibri: {e}. Usando Times como fallback.", file=sys.stderr)
             self.calibri_loaded = False
         
@@ -68,16 +66,15 @@ class PDF(FPDF):
         self.set_line_width(width)
 
     def criar_pauta(self, verso):
-        """Adiciona a pauta (linha preta, linha vermelha e texto do verso ACIMA da linha)."""
+        """Adiciona a pauta (linha preta, linha vermelha e texto do verso ACIMA da linha, ajustado)."""
         
         # 1. Linha de Notas (Preta)
         self.set_line_style((0, 0, 0), width=0.13)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5) # Espaço abaixo da linha preta
         
-        # 2. Texto do Verso (AGORA COM FALLBACK DE FONTE)
+        # 2. Texto do Verso (AGORA MAIS PARA CIMA)
         
-        # Tenta usar Calibri, se falhar, usa Times Itálico (aparência mais leve)
         if self.calibri_loaded:
             self.set_font('Calibri', '', 10) 
         else:
@@ -85,8 +82,8 @@ class PDF(FPDF):
             
         self.set_text_color(255, 0, 0) # Cor Vermelha
         
-        # Ajuste vertical: -4.8mm para mover o texto para cima
-        self.set_y(self.get_y() - 4.8) 
+        # AJUSTE FINO (era -4.8, agora -5.5 para subir mais)
+        self.set_y(self.get_y() - 5.5) 
         
         # Converte o texto e desenha
         texto_seguro = verso.encode('latin-1', 'replace').decode('latin-1')
@@ -95,8 +92,8 @@ class PDF(FPDF):
         
         # 3. Linha de Verso (Vermelha)
         
-        # Ajuste vertical: -1.7mm para que a linha fique próxima do texto
-        self.set_y(self.get_y() - 1.7) 
+        # AJUSTE FINO (era -1.7, agora -1.0 para manter a linha colada no texto)
+        self.set_y(self.get_y() - 1.0) 
         
         self.set_line_style((255, 0, 0), width=0.13)
         self.line(10, self.get_y(), 200, self.get_y())
@@ -155,3 +152,4 @@ if st.button("Clique aqui para gerar o PDF"):
         except Exception as e:
             st.error(f"Erro ao gerar o download: {e}")
             print(f"Erro no processo de download: {e}", file=sys.stderr)
+            
