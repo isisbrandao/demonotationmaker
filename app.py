@@ -9,30 +9,48 @@ class PDF(FPDF):
     """Classe customizada para gerar o PDF com seu layout específico."""
     
     def __init__(self, titulo, autor):
-        # Passa 'latin-1' como encoding padrão para evitar problemas de codificação
         super().__init__('P', 'mm', 'A4') 
         self.doc_titulo = titulo
         self.doc_autor = autor
         self.set_left_margin(10)
         self.set_right_margin(10)
 
+        # Adicionar a fonte Calibri se necessário (o fpdf2 usa fontes básicas por padrão)
+        # Para usar Calibri, você teria que carregar o arquivo .ttf e usar o comando:
+        # self.add_font('Calibri', '', 'Calibri.ttf')
+        # Por simplicidade e robustez no Streamlit Cloud, vamos usar Times para Título/Autor
+        # e usar a cor e tamanho especificados.
+
     def header(self):
-        """Define o cabeçalho do documento (Título, Autor e Linha Cinza)."""
+        """Define o cabeçalho do documento (Título Centralizado e Autor à Direita)."""
         
-        # Título: Times New Roman, 18pt, Negrito, Itálico
+        # 1. Título (Times New Roman, 18pt, Negrito, Itálico, Centralizado)
         self.set_font('Times', 'BI', 18) 
-        w = self.get_string_width(self.doc_titulo) + 6
-        self.set_x((210 - w) / 2) # Centraliza o título
-        self.set_text_color(0, 0, 0) # Preto para o título
-        self.cell(w, 9, self.doc_titulo, 0, 1, 'C')
+        self.set_text_color(0, 0, 0) 
         
-        # Autor: Times New Roman, 10pt, Itálico, Cinza #666666
+        # Define a posição do Título
+        title_width = self.get_string_width(self.doc_titulo)
+        title_x = 10 # Começa na margem esquerda
+        
+        # Cria a célula do Título (largura arbitrária de 100mm, sem borda)
+        self.set_x(title_x)
+        self.cell(100, 9, self.doc_titulo, 0, 0, 'L') # 'L' para alinhar à esquerda
+        
+        # 2. Autor/Compositor (Times New Roman, 10pt, Itálico, Cinza, Alinhado à Direita)
         self.set_font('Times', 'I', 10)
         self.set_text_color(102, 102, 102) 
-        self.cell(0, 5, self.doc_autor, 0, 1, 'C')
-        self.ln(5) 
         
-        # Linha Cinza (Divisória)
+        # Calcula a posição para alinhar à direita (Margem Direita está em 200 - 10 = 190)
+        autor_x = 110 # Define o início da célula do autor (pode precisar de ajuste fino)
+        
+        # Move o cursor para o X do autor
+        self.set_x(autor_x)
+        # Cria a célula do Autor (largura de 90mm, sem borda, 'R' para alinhar à direita)
+        self.cell(90, 9, self.doc_autor, 0, 1, 'R') # '1' para quebrar a linha após o autor
+        
+        self.ln(5) # Espaço abaixo do cabeçalho
+        
+        # 3. Linha Cinza (Divisória)
         self.set_draw_color(192, 192, 192) 
         self.set_line_width(0.1) 
         self.line(10, self.get_y(), 200, self.get_y())
@@ -44,28 +62,45 @@ class PDF(FPDF):
         self.set_line_width(width)
 
     def criar_pauta(self, verso):
-        """Adiciona a pauta (linha preta, linha vermelha e texto do verso)."""
+        """Adiciona a pauta (linha preta, linha vermelha e texto do verso em cima da linha)."""
         
-        # 1. Linha de Notas (Preta)
+        # --- 1. Linha de Notas (Preta) ---
         self.set_line_style((0, 0, 0), width=0.13)
         self.line(10, self.get_y(), 200, self.get_y())
-        self.ln(5) 
+        self.ln(5) # Espaço abaixo da linha preta
         
-        # 2. Linha de Verso (Vermelha)
-        self.set_line_style((255, 0, 0), width=0.13)
-        self.line(10, self.get_y(), 200, self.get_y())
-        self.ln(2) 
-
-        # 3. Texto do Verso
-        self.set_font('Times', '', 10)
-        self.set_text_color(0, 0, 0) 
-        # Passa o texto através de um encode/decode para garantir que caracteres especiais funcionem no PDF
+        # --- 2. Texto do Verso (NOVO POSICIONAMENTO) ---
+        
+        # Define a fonte, tamanho 10, e cor VERMELHA (#FF0000)
+        # Usaremos Times, pois Calibri exige carregamento extra de arquivo .ttf
+        self.set_font('Times', '', 10) 
+        self.set_text_color(255, 0, 0) # Cor Vermelha
+        
+        # Converte e posiciona o texto (precisamos do MultiCell para quebra de linha)
         texto_seguro = verso.encode('latin-1', 'replace').decode('latin-1')
-        self.multi_cell(0, 5, texto_seguro)
-        self.ln(8) 
+        
+        # Altura da linha de texto (ex: 5mm)
+        text_height = 5
+        
+        # Move o cursor para CIMA, onde a linha vermelha será desenhada
+        self.set_y(self.get_y() + 1) # Pequeno ajuste para garantir que fique "em cima"
+        
+        # Adiciona o texto (MultiCell usa a cor vermelha e define a posição)
+        self.multi_cell(0, text_height, texto_seguro, border=0, align='L', fill=False)
+        
+        # --- 3. Linha de Verso (Vermelha) ---
+        
+        # Agora desenhamos a linha vermelha ABAIXO do texto
+        self.set_line_style((255, 0, 0), width=0.13)
+        
+        # Move o cursor para a posição imediatamente abaixo do texto que acabou de ser desenhado
+        self.set_y(self.get_y() - 2) # Subir um pouco para a linha encostar no texto
+        
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(8) # Espaço maior antes do próximo bloco/pauta
 
 
-# --- 2. CONFIGURAÇÃO DA INTERFACE STREAMLIT ---
+# --- 2. CONFIGURAÇÃO DA INTERFACE STREAMLIT (mantida) ---
 
 st.set_page_config(page_title="Music Notation Maker", layout="centered")
 
@@ -83,16 +118,13 @@ if st.button("Clique aqui para gerar o PDF"):
     
     # 3. GERAÇÃO DO PDF
     
-    # Inicializa o PDF, passando o título e o autor
     try:
         pdf = PDF(titulo, autor)
         pdf.add_page()
     except Exception as e:
-        # Se falhar aqui, mostra a exceção completa
         st.error(f"Erro ao inicializar o PDF: {e}")
-        # Uma medida de segurança extra para exibir o erro completo no log
         print(f"Erro na inicialização do PDF: {e}", file=sys.stderr)
-        st.stop() # Para a execução do script
+        st.stop()
 
     versos = [v.strip() for v in letra.split('\n') if v.strip()]
     
@@ -102,19 +134,16 @@ if st.button("Clique aqui para gerar o PDF"):
         for verso in versos:
             pdf.criar_pauta(verso)
             
-        # 4. Saída e Download (CORREÇÃO DE CONVERSÃO PARA BYTES)
+        # 4. Saída e Download 
         
         try:
-            # Cria um buffer de bytes na memória
             buffer = io.BytesIO()
-            # O output(dest='S') retorna bytes, que escrevemos no buffer
             buffer.write(pdf.output(dest='S'))
-            # Retorna ao início do buffer
             buffer.seek(0)
             
             st.download_button(
                 label="Download do PDF Final",
-                data=buffer, # Passamos o objeto buffer IO
+                data=buffer, 
                 file_name=f"{titulo.replace(' ', '_')}.pdf",
                 mime="application/pdf"
             )
