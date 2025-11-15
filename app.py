@@ -2,6 +2,7 @@ import streamlit as st
 from fpdf import FPDF 
 import io 
 import sys
+import os # Importar a biblioteca os para verificar arquivos
 
 # --- 1. CONFIGURAÇÃO DA CLASSE PDF CUSTOMIZADA ---
 
@@ -14,29 +15,35 @@ class PDF(FPDF):
         self.doc_autor = autor
         self.set_left_margin(10)
         self.set_right_margin(10)
+        
+        # Variável para rastrear se o Calibri foi carregado com sucesso
+        self.calibri_loaded = False 
 
-        # AGORA VAMOS CARREGAR A FONTE CALIBRI
+        # Tenta carregar a fonte Calibri
         try:
-            # O fpdf2 procurará por Calibri.ttf no mesmo diretório do app.py
-            self.add_font('Calibri', '', 'Calibri.ttf')
-            self.add_font('Calibri', 'B', 'CalibriB.ttf')
-            self.add_font('Calibri', 'I', 'CalibriI.ttf')
+            # Verifica se os arquivos existem antes de tentar carregar
+            if os.path.exists('Calibri.ttf'):
+                self.add_font('Calibri', '', 'Calibri.ttf')
+                if os.path.exists('CalibriB.ttf'):
+                    self.add_font('Calibri', 'B', 'CalibriB.ttf')
+                if os.path.exists('CalibriI.ttf'):
+                    self.add_font('Calibri', 'I', 'CalibriI.ttf')
+                self.calibri_loaded = True
         except Exception as e:
-            # Em caso de falha no carregamento (ex: arquivo faltando), 
-            # usamos Times como fallback para não quebrar o app
+            # Em caso de falha no carregamento, o fallback é Times
             print(f"Erro ao carregar fonte Calibri: {e}. Usando Times como fallback.", file=sys.stderr)
+            self.calibri_loaded = False
         
     def header(self):
         """Define o cabeçalho do documento: Título Centralizado, Autor à Direita."""
         
-        # 1. Título (Usamos Times para Título/Autor por ser mais robusto, mas podemos usar Calibri se carregada)
+        # 1. Título
         self.set_font('Times', 'BI', 18) 
         self.set_text_color(0, 0, 0)
         
         title_width = self.get_string_width(self.doc_titulo)
         title_start_x = (210 - title_width) / 2
         
-        # Título Centralizado
         self.set_x(title_start_x)
         self.cell(title_width, 9, self.doc_titulo, 0, 0, 'C') 
         
@@ -68,13 +75,17 @@ class PDF(FPDF):
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5) # Espaço abaixo da linha preta
         
-        # 2. Texto do Verso (AGORA COM CALIBRI E MAIS EM CIMA)
+        # 2. Texto do Verso (AGORA COM FALLBACK DE FONTE)
         
-        # TENTA USAR CALIBRI (necessita do arquivo .ttf no repositório)
-        self.set_font('Calibri', '', 10) 
-        self.set_text_color(255, 0, 0) 
+        # Tenta usar Calibri, se falhar, usa Times Itálico (aparência mais leve)
+        if self.calibri_loaded:
+            self.set_font('Calibri', '', 10) 
+        else:
+            self.set_font('Times', 'I', 10) # Fallback para Times Itálico
+            
+        self.set_text_color(255, 0, 0) # Cor Vermelha
         
-        # Ajuste vertical: -4.8mm para mover um pouco mais para cima (era -4.5)
+        # Ajuste vertical: -4.8mm para mover o texto para cima
         self.set_y(self.get_y() - 4.8) 
         
         # Converte o texto e desenha
@@ -84,7 +95,7 @@ class PDF(FPDF):
         
         # 3. Linha de Verso (Vermelha)
         
-        # Ajuste vertical: -1.7mm para que a linha fique mais próxima do texto
+        # Ajuste vertical: -1.7mm para que a linha fique próxima do texto
         self.set_y(self.get_y() - 1.7) 
         
         self.set_line_style((255, 0, 0), width=0.13)
