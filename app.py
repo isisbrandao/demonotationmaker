@@ -15,39 +15,35 @@ class PDF(FPDF):
         self.set_left_margin(10)
         self.set_right_margin(10)
 
-        # Adicionar a fonte Calibri se necessário (o fpdf2 usa fontes básicas por padrão)
-        # Para usar Calibri, você teria que carregar o arquivo .ttf e usar o comando:
-        # self.add_font('Calibri', '', 'Calibri.ttf')
-        # Por simplicidade e robustez no Streamlit Cloud, vamos usar Times para Título/Autor
-        # e usar a cor e tamanho especificados.
+        # Abordagem para a fonte Calibri (VAMOS MANTER Times por robustez)
+        # Se quiser usar Calibri, você precisa de um arquivo .ttf no seu repositório GitHub
+        # e usar: self.add_font('Calibri', '', 'Calibri.ttf')
+        # Manteremos Times com os atributos visuais de Calibri (cor, tamanho).
 
     def header(self):
-        """Define o cabeçalho do documento (Título Centralizado e Autor à Direita)."""
+        """Define o cabeçalho do documento: Título Centralizado, Autor à Direita."""
         
-        # 1. Título (Times New Roman, 18pt, Negrito, Itálico, Centralizado)
+        # 1. Título (Times New Roman, 18pt, Negrito, Itálico, AGORA CENTRALIZADO)
         self.set_font('Times', 'BI', 18) 
-        self.set_text_color(0, 0, 0) 
+        self.set_text_color(0, 0, 0) # Preto
         
-        # Define a posição do Título
+        # Centralização do Título (cálculo de largura do texto)
         title_width = self.get_string_width(self.doc_titulo)
-        title_x = 10 # Começa na margem esquerda
+        title_start_x = (210 - title_width) / 2 # Ponto de início para centralizar
         
-        # Cria a célula do Título (largura arbitrária de 100mm, sem borda)
-        self.set_x(title_x)
-        self.cell(100, 9, self.doc_titulo, 0, 0, 'L') # 'L' para alinhar à esquerda
+        # Desenha o Título e o Autor na mesma linha
+        # Título: Posição fixa no centro
+        self.set_x(title_start_x)
+        self.cell(title_width, 9, self.doc_titulo, 0, 0, 'C') # 0, 0 para NÃO pular linha
         
         # 2. Autor/Compositor (Times New Roman, 10pt, Itálico, Cinza, Alinhado à Direita)
         self.set_font('Times', 'I', 10)
-        self.set_text_color(102, 102, 102) 
+        self.set_text_color(102, 102, 102) # Cinza
         
-        # Calcula a posição para alinhar à direita (Margem Direita está em 200 - 10 = 190)
-        autor_x = 110 # Define o início da célula do autor (pode precisar de ajuste fino)
-        
-        # Move o cursor para o X do autor
-        self.set_x(autor_x)
-        # Cria a célula do Autor (largura de 90mm, sem borda, 'R' para alinhar à direita)
-        self.cell(90, 9, self.doc_autor, 0, 1, 'R') # '1' para quebrar a linha após o autor
-        
+        # Posiciona o cursor para desenhar o autor alinhado à direita na mesma altura
+        self.set_x(140) # Posição estratégica para garantir que o autor fique à direita da página
+        self.cell(60, 9, self.doc_autor, 0, 1, 'R') # 0, 1 para pular linha após o autor
+
         self.ln(5) # Espaço abaixo do cabeçalho
         
         # 3. Linha Cinza (Divisória)
@@ -69,33 +65,28 @@ class PDF(FPDF):
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5) # Espaço abaixo da linha preta
         
-        # --- 2. Texto do Verso (NOVO POSICIONAMENTO) ---
+        # --- 2. Texto do Verso (POSICIONAMENTO CORRIGIDO) ---
         
-        # Define a fonte, tamanho 10, e cor VERMELHA (#FF0000)
-        # Usaremos Times, pois Calibri exige carregamento extra de arquivo .ttf
+        # Fonte: Times (em substituição a Calibri), Tamanho 10, Cor VERMELHA
         self.set_font('Times', '', 10) 
-        self.set_text_color(255, 0, 0) # Cor Vermelha
+        self.set_text_color(255, 0, 0) 
         
-        # Converte e posiciona o texto (precisamos do MultiCell para quebra de linha)
+        # Para que o texto fique ACIMA da linha vermelha e não seja cortado, 
+        # movemos o cursor para CIMA ANTES de desenhar o texto.
+        self.set_y(self.get_y() + 0.5) # Pequeno ajuste vertical para evitar corte
+        
+        # Converte o texto e desenha
         texto_seguro = verso.encode('latin-1', 'replace').decode('latin-1')
-        
-        # Altura da linha de texto (ex: 5mm)
         text_height = 5
-        
-        # Move o cursor para CIMA, onde a linha vermelha será desenhada
-        self.set_y(self.get_y() + 1) # Pequeno ajuste para garantir que fique "em cima"
-        
-        # Adiciona o texto (MultiCell usa a cor vermelha e define a posição)
         self.multi_cell(0, text_height, texto_seguro, border=0, align='L', fill=False)
         
         # --- 3. Linha de Verso (Vermelha) ---
         
-        # Agora desenhamos a linha vermelha ABAIXO do texto
+        # Move o cursor para a posição imediatamente abaixo do texto.
+        # get_y() aponta para o final do multi_cell. Subimos um pouco para a linha encostar.
+        self.set_y(self.get_y() - 4.5) 
+        
         self.set_line_style((255, 0, 0), width=0.13)
-        
-        # Move o cursor para a posição imediatamente abaixo do texto que acabou de ser desenhado
-        self.set_y(self.get_y() - 2) # Subir um pouco para a linha encostar no texto
-        
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(8) # Espaço maior antes do próximo bloco/pauta
 
