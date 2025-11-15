@@ -15,12 +15,23 @@ class PDF(FPDF):
         self.set_left_margin(10)
         self.set_right_margin(10)
 
+        # AGORA VAMOS CARREGAR A FONTE CALIBRI
+        try:
+            # O fpdf2 procurará por Calibri.ttf no mesmo diretório do app.py
+            self.add_font('Calibri', '', 'Calibri.ttf')
+            self.add_font('Calibri', 'B', 'CalibriB.ttf')
+            self.add_font('Calibri', 'I', 'CalibriI.ttf')
+        except Exception as e:
+            # Em caso de falha no carregamento (ex: arquivo faltando), 
+            # usamos Times como fallback para não quebrar o app
+            print(f"Erro ao carregar fonte Calibri: {e}. Usando Times como fallback.", file=sys.stderr)
+        
     def header(self):
         """Define o cabeçalho do documento: Título Centralizado, Autor à Direita."""
         
-        # 1. Título (Times New Roman, 18pt, Negrito, Itálico, Centralizado)
+        # 1. Título (Usamos Times para Título/Autor por ser mais robusto, mas podemos usar Calibri se carregada)
         self.set_font('Times', 'BI', 18) 
-        self.set_text_color(0, 0, 0) # Preto
+        self.set_text_color(0, 0, 0)
         
         title_width = self.get_string_width(self.doc_titulo)
         title_start_x = (210 - title_width) / 2
@@ -29,15 +40,14 @@ class PDF(FPDF):
         self.set_x(title_start_x)
         self.cell(title_width, 9, self.doc_titulo, 0, 0, 'C') 
         
-        # 2. Autor/Compositor (Times New Roman, 10pt, Itálico, Cinza, Alinhado à Direita)
+        # 2. Autor/Compositor
         self.set_font('Times', 'I', 10)
-        self.set_text_color(102, 102, 102) # Cinza
+        self.set_text_color(102, 102, 102) 
         
-        # Posiciona o cursor para desenhar o autor alinhado à direita
         self.set_x(140) 
-        self.cell(60, 9, self.doc_autor, 0, 1, 'R') # Pula linha após o autor
+        self.cell(60, 9, self.doc_autor, 0, 1, 'R') 
 
-        self.ln(5) # Espaço abaixo do cabeçalho
+        self.ln(5) 
         
         # 3. Linha Cinza (Divisória)
         self.set_draw_color(192, 192, 192) 
@@ -58,17 +68,14 @@ class PDF(FPDF):
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5) # Espaço abaixo da linha preta
         
-        # 2. Texto do Verso (POSICIONAMENTO CORRIGIDO PARA FICAR ACIMA)
+        # 2. Texto do Verso (AGORA COM CALIBRI E MAIS EM CIMA)
         
-        # Fonte: Times (Substituindo Calibri), Tamanho 10, Cor VERMELHA
-        # Usamos 'I' (Itálico) para dar uma aparência mais leve.
-        self.set_font('Times', 'I', 10) 
+        # TENTA USAR CALIBRI (necessita do arquivo .ttf no repositório)
+        self.set_font('Calibri', '', 10) 
         self.set_text_color(255, 0, 0) 
         
-        # Move o cursor para CIMA ANTES de desenhar o texto.
-        # Ajuste de -4.5mm move o cursor para a posição ACIMA da linha vermelha.
-        # A altura da célula (5mm) será desenhada de cima para baixo.
-        self.set_y(self.get_y() - 4.5) 
+        # Ajuste vertical: -4.8mm para mover um pouco mais para cima (era -4.5)
+        self.set_y(self.get_y() - 4.8) 
         
         # Converte o texto e desenha
         texto_seguro = verso.encode('latin-1', 'replace').decode('latin-1')
@@ -77,9 +84,8 @@ class PDF(FPDF):
         
         # 3. Linha de Verso (Vermelha)
         
-        # Move o cursor para a posição imediatamente abaixo do texto.
-        # O get_y() está no final do MultiCell. Subimos 1.5mm para a linha ficar colada.
-        self.set_y(self.get_y() - 1.5) 
+        # Ajuste vertical: -1.7mm para que a linha fique mais próxima do texto
+        self.set_y(self.get_y() - 1.7) 
         
         self.set_line_style((255, 0, 0), width=0.13)
         self.line(10, self.get_y(), 200, self.get_y())
@@ -112,12 +118,6 @@ if st.button("Clique aqui para gerar o PDF"):
         print(f"Erro na inicialização do PDF: {e}", file=sys.stderr)
         st.stop()
 
-    # O Streamlit já forneceu os versos
-    # [cite_start]Brilha, brilha, estrelinha [cite: 3]
-    # [cite_start]Quero ver você brilhar [cite: 4]
-    # [cite_start]Lá no alto, lá no céu [cite: 5]
-    # [cite_start]Num desenho de cordel [cite: 6]
-    
     versos = [v.strip() for v in letra.split('\n') if v.strip()]
     
     if not versos:
