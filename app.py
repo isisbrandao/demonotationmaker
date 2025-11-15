@@ -15,34 +15,27 @@ class PDF(FPDF):
         self.set_left_margin(10)
         self.set_right_margin(10)
 
-        # Abordagem para a fonte Calibri (VAMOS MANTER Times por robustez)
-        # Se quiser usar Calibri, você precisa de um arquivo .ttf no seu repositório GitHub
-        # e usar: self.add_font('Calibri', '', 'Calibri.ttf')
-        # Manteremos Times com os atributos visuais de Calibri (cor, tamanho).
-
     def header(self):
         """Define o cabeçalho do documento: Título Centralizado, Autor à Direita."""
         
-        # 1. Título (Times New Roman, 18pt, Negrito, Itálico, AGORA CENTRALIZADO)
+        # 1. Título (Times New Roman, 18pt, Negrito, Itálico, Centralizado)
         self.set_font('Times', 'BI', 18) 
         self.set_text_color(0, 0, 0) # Preto
         
-        # Centralização do Título (cálculo de largura do texto)
         title_width = self.get_string_width(self.doc_titulo)
-        title_start_x = (210 - title_width) / 2 # Ponto de início para centralizar
+        title_start_x = (210 - title_width) / 2
         
-        # Desenha o Título e o Autor na mesma linha
-        # Título: Posição fixa no centro
+        # Título Centralizado
         self.set_x(title_start_x)
-        self.cell(title_width, 9, self.doc_titulo, 0, 0, 'C') # 0, 0 para NÃO pular linha
+        self.cell(title_width, 9, self.doc_titulo, 0, 0, 'C') 
         
         # 2. Autor/Compositor (Times New Roman, 10pt, Itálico, Cinza, Alinhado à Direita)
         self.set_font('Times', 'I', 10)
         self.set_text_color(102, 102, 102) # Cinza
         
-        # Posiciona o cursor para desenhar o autor alinhado à direita na mesma altura
-        self.set_x(140) # Posição estratégica para garantir que o autor fique à direita da página
-        self.cell(60, 9, self.doc_autor, 0, 1, 'R') # 0, 1 para pular linha após o autor
+        # Posiciona o cursor para desenhar o autor alinhado à direita
+        self.set_x(140) 
+        self.cell(60, 9, self.doc_autor, 0, 1, 'R') # Pula linha após o autor
 
         self.ln(5) # Espaço abaixo do cabeçalho
         
@@ -58,33 +51,35 @@ class PDF(FPDF):
         self.set_line_width(width)
 
     def criar_pauta(self, verso):
-        """Adiciona a pauta (linha preta, linha vermelha e texto do verso em cima da linha)."""
+        """Adiciona a pauta (linha preta, linha vermelha e texto do verso ACIMA da linha)."""
         
-        # --- 1. Linha de Notas (Preta) ---
+        # 1. Linha de Notas (Preta)
         self.set_line_style((0, 0, 0), width=0.13)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5) # Espaço abaixo da linha preta
         
-        # --- 2. Texto do Verso (POSICIONAMENTO CORRIGIDO) ---
+        # 2. Texto do Verso (POSICIONAMENTO CORRIGIDO PARA FICAR ACIMA)
         
-        # Fonte: Times (em substituição a Calibri), Tamanho 10, Cor VERMELHA
-        self.set_font('Times', '', 10) 
+        # Fonte: Times (Substituindo Calibri), Tamanho 10, Cor VERMELHA
+        # Usamos 'I' (Itálico) para dar uma aparência mais leve.
+        self.set_font('Times', 'I', 10) 
         self.set_text_color(255, 0, 0) 
         
-        # Para que o texto fique ACIMA da linha vermelha e não seja cortado, 
-        # movemos o cursor para CIMA ANTES de desenhar o texto.
-        self.set_y(self.get_y() + 0.5) # Pequeno ajuste vertical para evitar corte
+        # Move o cursor para CIMA ANTES de desenhar o texto.
+        # Ajuste de -4.5mm move o cursor para a posição ACIMA da linha vermelha.
+        # A altura da célula (5mm) será desenhada de cima para baixo.
+        self.set_y(self.get_y() - 4.5) 
         
         # Converte o texto e desenha
         texto_seguro = verso.encode('latin-1', 'replace').decode('latin-1')
         text_height = 5
         self.multi_cell(0, text_height, texto_seguro, border=0, align='L', fill=False)
         
-        # --- 3. Linha de Verso (Vermelha) ---
+        # 3. Linha de Verso (Vermelha)
         
         # Move o cursor para a posição imediatamente abaixo do texto.
-        # get_y() aponta para o final do multi_cell. Subimos um pouco para a linha encostar.
-        self.set_y(self.get_y() - 4.5) 
+        # O get_y() está no final do MultiCell. Subimos 1.5mm para a linha ficar colada.
+        self.set_y(self.get_y() - 1.5) 
         
         self.set_line_style((255, 0, 0), width=0.13)
         self.line(10, self.get_y(), 200, self.get_y())
@@ -99,10 +94,10 @@ st.title("🎵 Music Notation Maker")
 st.markdown("Crie seu modelo de partitura de violino com organização automática de versos.")
 
 # Campos de entrada
-titulo = st.text_input("Escreva aqui o título da música", "Título da música")
-autor = st.text_input("Escreva aqui o autor ou compositor da música", "Autor/Compositor")
+titulo = st.text_input("Escreva aqui o título da música", "Brilha, Brilha, Estrelinha")
+autor = st.text_input("Escreva aqui o autor ou compositor da música", "Jane Taylor")
 letra = st.text_area("Cole aqui o trecho da música (Um verso por linha)", height=200, 
-                     value="Brilha, brilha, estrelinha\nQuero ver você brilhar\nLá no alto, lá no céu")
+                     value="Brilha, brilha, estrelinha\nQuero ver você brilhar\nLá no alto, lá no céu\nNum desenho de cordel")
 
 # Botão para gerar
 if st.button("Clique aqui para gerar o PDF"):
@@ -117,6 +112,12 @@ if st.button("Clique aqui para gerar o PDF"):
         print(f"Erro na inicialização do PDF: {e}", file=sys.stderr)
         st.stop()
 
+    # O Streamlit já forneceu os versos
+    # [cite_start]Brilha, brilha, estrelinha [cite: 3]
+    # [cite_start]Quero ver você brilhar [cite: 4]
+    # [cite_start]Lá no alto, lá no céu [cite: 5]
+    # [cite_start]Num desenho de cordel [cite: 6]
+    
     versos = [v.strip() for v in letra.split('\n') if v.strip()]
     
     if not versos:
