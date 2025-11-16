@@ -4,18 +4,19 @@ import io
 import sys
 import os 
 
-# --- 1. CONFIGURAÇÃO DA CLASSE PDF CUSTOMIZADA (Mantida) ---
+# --- 1. CONFIGURAÇÃO DA CLASSE PDF CUSTOMIZADA ---
 
 class PDF(FPDF):
     """Classe customizada para gerar o PDF com seu layout específico."""
     
     def __init__(self):
-        # A classe não recebe mais título/autor no __init__
         super().__init__('P', 'mm', 'A4') 
         self.set_left_margin(10)
         self.set_right_margin(10)
         
         self.calibri_loaded = False 
+        
+        # Tenta carregar a fonte Calibri (Se os arquivos .ttf estiverem no repositório)
         try:
             if os.path.exists('Calibri.ttf'):
                 self.add_font('Calibri', '', 'Calibri.ttf')
@@ -29,16 +30,16 @@ class PDF(FPDF):
             self.calibri_loaded = False
 
     def header(self):
-        """O header padrão é sobrescrito para evitar ser chamado automaticamente.
-           Usaremos 'add_music_header' manualmente."""
+        """O header padrão é sobrescrito, usamos 'add_music_header' manualmente."""
         pass
 
     def add_music_header(self, titulo, autor):
         """Adiciona o cabeçalho de uma música específica (chamado manualmente)."""
         
-        self.add_page() # Começa uma nova página para a nova música
+        # Começa uma nova página (importante para múltiplas músicas)
+        self.add_page() 
         
-        # 1. Título
+        # 1. Título (Centralizado)
         self.set_font('Times', 'BI', 18) 
         self.set_text_color(0, 0, 0)
         
@@ -48,7 +49,7 @@ class PDF(FPDF):
         self.set_x(title_start_x)
         self.cell(title_width, 9, titulo, 0, 0, 'C') 
         
-        # 2. Autor/Compositor
+        # 2. Autor/Compositor (À Direita)
         self.set_font('Times', 'I', 10)
         self.set_text_color(102, 102, 102) 
         
@@ -65,11 +66,17 @@ class PDF(FPDF):
         # 4. ESPAÇAMENTO: 1cm (10mm) entre a linha cinza e o conteúdo
         self.ln(10) 
 
+    # ESTA É A FUNÇÃO QUE ESTAVA FALTANDO OU INACESSÍVEL NO SEU ERRO
+    def set_line_style(self, color_rgb, width=0.1):
+        """Define a cor e espessura da linha."""
+        self.set_draw_color(color_rgb[0], color_rgb[1], color_rgb[2])
+        self.set_line_width(width)
+
     def criar_pauta(self, verso):
         """Adiciona a pauta (linha preta, linha vermelha e texto do verso ACIMA da linha)."""
         
         # 1. Linha de Notas (Preta)
-        self.set_line_style((0, 0, 0), width=0.13)
+        self.set_line_style((0, 0, 0), width=0.13) # Esta linha causava o erro
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5) 
         
@@ -98,7 +105,7 @@ class PDF(FPDF):
 
 # --- 2. FUNÇÕES DE ESTADO DE SESSÃO PARA MÚLTIPLAS MÚSICAS ---
 
-# Estrutura de dados inicial para uma música
+# Estrutura de dados inicial para uma música (com placeholders corrigidos)
 MUSICA_TEMPLATE = {
     "titulo": "Título da música",
     "autor": "Autor/Compositor",
@@ -178,7 +185,6 @@ if st.button("🌟 Gerar e Baixar Partitura Completa (PDF ÚNICO)"):
     # 4. GERAÇÃO DO PDF
     
     try:
-        # Inicializa o PDF (sem parâmetros, pois o header é manual)
         pdf = PDF()
     except Exception as e:
         st.error(f"Erro ao inicializar o PDF: {e}")
@@ -195,7 +201,7 @@ if st.button("🌟 Gerar e Baixar Partitura Completa (PDF ÚNICO)"):
         versos = [v.strip() for v in musica["letra"].split('\n') if v.strip()]
         
         if not versos:
-            pdf.ln(20) # Espaçamento caso a letra esteja vazia
+            pdf.ln(20) 
             pdf.set_font('Times', 'I', 12)
             pdf.cell(0, 10, "⚠️ Esta música não tem letra.", 0, 1, 'C')
         else:
