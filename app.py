@@ -4,21 +4,18 @@ import io
 import sys
 import os 
 
-# --- 1. CONFIGURAÇÃO DA CLASSE PDF CUSTOMIZADA ---
+# --- 1. CONFIGURAÇÃO DA CLASSE PDF CUSTOMIZADA (Mantida) ---
 
 class PDF(FPDF):
     """Classe customizada para gerar o PDF com seu layout específico."""
     
-    def __init__(self, titulo, autor):
+    def __init__(self):
+        # A classe não recebe mais título/autor no __init__
         super().__init__('P', 'mm', 'A4') 
-        self.doc_titulo = titulo
-        self.doc_autor = autor
         self.set_left_margin(10)
         self.set_right_margin(10)
         
         self.calibri_loaded = False 
-
-        # Tenta carregar a fonte Calibri (necessário se os .ttf foram fornecidos)
         try:
             if os.path.exists('Calibri.ttf'):
                 self.add_font('Calibri', '', 'Calibri.ttf')
@@ -30,48 +27,53 @@ class PDF(FPDF):
         except Exception as e:
             print(f"Erro ao carregar fonte Calibri: {e}. Usando Times como fallback.", file=sys.stderr)
             self.calibri_loaded = False
-        
+
     def header(self):
-        """Define o cabeçalho do documento e o espaçamento de 1cm (10mm)."""
+        """O header padrão é sobrescrito para evitar ser chamado automaticamente.
+           Usaremos 'add_music_header' manualmente."""
+        pass
+
+    def add_music_header(self, titulo, autor):
+        """Adiciona o cabeçalho de uma música específica (chamado manualmente)."""
         
-        # 1. Título e Autor (mantido)
+        self.add_page() # Começa uma nova página para a nova música
+        
+        # 1. Título
         self.set_font('Times', 'BI', 18) 
         self.set_text_color(0, 0, 0)
-        title_width = self.get_string_width(self.doc_titulo)
+        
+        title_width = self.get_string_width(titulo)
         title_start_x = (210 - title_width) / 2
         
         self.set_x(title_start_x)
-        self.cell(title_width, 9, self.doc_titulo, 0, 0, 'C') 
+        self.cell(title_width, 9, titulo, 0, 0, 'C') 
         
+        # 2. Autor/Compositor
         self.set_font('Times', 'I', 10)
         self.set_text_color(102, 102, 102) 
+        
         self.set_x(140) 
-        self.cell(60, 9, self.doc_autor, 0, 1, 'R') 
+        self.cell(60, 9, autor, 0, 1, 'R') 
 
         self.ln(5) 
         
-        # 2. Linha Cinza (Divisória)
+        # 3. Linha Cinza (Divisória)
         self.set_draw_color(192, 192, 192) 
         self.set_line_width(0.1) 
         self.line(10, self.get_y(), 200, self.get_y())
         
-        # 3. NOVO ESPAÇAMENTO: Adiciona 10mm (1cm) entre a linha cinza e o conteúdo
+        # 4. ESPAÇAMENTO: 1cm (10mm) entre a linha cinza e o conteúdo
         self.ln(10) 
-
-    def set_line_style(self, color_rgb, width=0.1):
-        """Define a cor e espessura da linha."""
-        self.set_draw_color(color_rgb[0], color_rgb[1], color_rgb[2])
-        self.set_line_width(width)
 
     def criar_pauta(self, verso):
         """Adiciona a pauta (linha preta, linha vermelha e texto do verso ACIMA da linha)."""
         
-        # 1. Linha de Notas (Preta) - Agora está 10mm abaixo da linha cinza
+        # 1. Linha de Notas (Preta)
         self.set_line_style((0, 0, 0), width=0.13)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5) 
         
-        # 2. Texto do Verso (Fonte e Posicionamento)
+        # 2. Texto do Verso 
         if self.calibri_loaded:
             self.set_font('Calibri', '', 10) 
         else:
@@ -79,17 +81,14 @@ class PDF(FPDF):
             
         self.set_text_color(255, 0, 0) 
         
-        # Ajuste vertical para mover o texto para cima (-5.5mm)
         self.set_y(self.get_y() - 5.5) 
         
-        # Converte o texto e desenha
         texto_seguro = verso.encode('latin-1', 'replace').decode('latin-1')
         text_height = 5
         self.multi_cell(0, text_height, texto_seguro, border=0, align='L', fill=False)
         
         # 3. Linha de Verso (Vermelha)
         
-        # Ajuste vertical para que a linha fique próxima do texto (-1.0mm)
         self.set_y(self.get_y() - 1.0) 
         
         self.set_line_style((255, 0, 0), width=0.13)
@@ -97,82 +96,113 @@ class PDF(FPDF):
         self.ln(8) 
 
 
-# --- 2. CONFIGURAÇÃO DA INTERFACE STREAMLIT (COM MÚLTIPLOS BLOCOS) ---
+# --- 2. FUNÇÕES DE ESTADO DE SESSÃO PARA MÚLTIPLAS MÚSICAS ---
+
+# Estrutura de dados inicial para uma música
+MUSICA_TEMPLATE = {
+    "titulo": "Título da música",
+    "autor": "Autor/Compositor",
+    "letra": "Cole aqui a letra da música (Um verso por linha)",
+}
+
+def inicializar_estado():
+    """Inicializa o estado da sessão com uma música vazia."""
+    if 'musicas' not in st.session_state:
+        st.session_state.musicas = [MUSICA_TEMPLATE.copy()]
+
+def adicionar_musica():
+    """Adiciona um novo template de música à lista."""
+    st.session_state.musicas.append(MUSICA_TEMPLATE.copy())
+
+def remover_musica(index):
+    """Remove uma música da lista."""
+    if len(st.session_state.musicas) > 1:
+        st.session_state.musicas.pop(index)
+    else:
+        st.warning("Pelo menos uma música deve permanecer.")
+
+
+# --- 3. CONFIGURAÇÃO DA INTERFACE STREAMLIT ---
+
+inicializar_estado()
 
 st.set_page_config(page_title="Music Notation Maker", layout="centered")
 
-st.title("🎵 Music Notation Maker")
-st.markdown("Crie seu modelo de partitura de violino com organização automática de versos.")
+st.title("🎵 Gerador de Partituras Múltiplas")
+st.markdown("Adicione e personalize várias músicas. Um único download gerará todas as partituras em sequência.")
 
-# Inicializa o estado da sessão para armazenar os blocos de verso
-if 'blocos' not in st.session_state:
-    st.session_state.blocos = [""] # Começa com um bloco vazio
-
-def adicionar_bloco():
-    """Função chamada pelo botão para adicionar um novo campo de texto."""
-    st.session_state.blocos.append("")
-
-def remover_bloco(index):
-    """Função chamada para remover um campo de texto."""
-    if len(st.session_state.blocos) > 1:
-        st.session_state.blocos.pop(index)
-    else:
-        st.warning("Pelo menos um bloco de letra deve permanecer.")
-
-
-# --- ÁREA DE INPUT ---
-
-titulo = st.text_input("Escreva aqui o título da música", "Brilha, Brilha, Estrelinha")
-autor = st.text_input("Escreva aqui o autor ou compositor da música", "Jane Taylor")
-
-st.subheader("Blocos de Letra (Um verso por linha)")
-
-# Cria os campos de texto dinamicamente
-for i, verso_bloco in enumerate(st.session_state.blocos):
+# Itera sobre a lista de músicas no estado
+for i, musica in enumerate(st.session_state.musicas):
+    
+    st.subheader(f"🎼 Música {i+1}")
+    
     col1, col2 = st.columns([10, 1])
     
-    with col1:
-        st.session_state.blocos[i] = st.text_area(
-            f"Bloco {i+1}", 
-            value=verso_bloco if verso_bloco else "Verso 1\nVerso 2",
-            height=100,
-            key=f"bloco_{i}"
-        )
-    with col2:
-        # Botão de remoção
-        st.markdown("<br>", unsafe_allow_html=True) # Espaçamento para alinhar
-        st.button("❌", key=f"remover_{i}", on_click=remover_bloco, args=(i,))
+    # Campo de Título
+    st.session_state.musicas[i]["titulo"] = col1.text_input(
+        f"Título da Música {i+1}", 
+        value=musica["titulo"], 
+        key=f"titulo_{i}"
+    )
 
-# Botão para adicionar mais blocos
-st.button("➕ Adicionar outro bloco de letra", on_click=adicionar_bloco)
+    # Campo de Autor
+    st.session_state.musicas[i]["autor"] = col1.text_input(
+        f"Autor/Compositor {i+1}", 
+        value=musica["autor"], 
+        key=f"autor_{i}"
+    )
+
+    # Campo de Letra (com o novo placeholder)
+    st.session_state.musicas[i]["letra"] = col1.text_area(
+        f"Letra da Música {i+1} (Um verso por linha)", 
+        value=musica["letra"],
+        height=150,
+        key=f"letra_{i}"
+    )
+    
+    # Botão de remoção
+    with col2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.button("❌ Remover Música", key=f"remover_{i}", on_click=remover_musica, args=(i,))
+    
+    st.markdown("---") # Separador visual entre músicas
+
+# Botão para adicionar mais músicas
+st.button("➕ Adicionar Outra Música", on_click=adicionar_musica)
 
 
 # --- BOTÃO PRINCIPAL DE GERAÇÃO ---
-st.markdown("---")
 
-if st.button("🌟 Gerar e Baixar Partitura Completa"):
+if st.button("🌟 Gerar e Baixar Partitura Completa (PDF ÚNICO)"):
     
-    # 3. GERAÇÃO DO PDF
+    # 4. GERAÇÃO DO PDF
     
     try:
-        pdf = PDF(titulo, autor)
-        pdf.add_page()
+        # Inicializa o PDF (sem parâmetros, pois o header é manual)
+        pdf = PDF()
     except Exception as e:
         st.error(f"Erro ao inicializar o PDF: {e}")
         print(f"Erro na inicialização do PDF: {e}", file=sys.stderr)
         st.stop()
 
-    # Processa todos os blocos de verso
-    for bloco_texto in st.session_state.blocos:
-        versos = [v.strip() for v in bloco_texto.split('\n') if v.strip()]
+    # Processa CADA MÚSICA separadamente
+    for musica in st.session_state.musicas:
         
-        for verso in versos:
-            pdf.criar_pauta(verso)
+        # 4a. Adiciona o Cabeçalho da MÚSICA
+        pdf.add_music_header(musica["titulo"], musica["autor"])
+        
+        # 4b. Processa os Versos da MÚSICA
+        versos = [v.strip() for v in musica["letra"].split('\n') if v.strip()]
+        
+        if not versos:
+            pdf.ln(20) # Espaçamento caso a letra esteja vazia
+            pdf.set_font('Times', 'I', 12)
+            pdf.cell(0, 10, "⚠️ Esta música não tem letra.", 0, 1, 'C')
+        else:
+            for verso in versos:
+                pdf.criar_pauta(verso)
             
-        # Adiciona uma quebra de linha maior entre blocos, se houver mais blocos
-        pdf.ln(10)
-            
-    # 4. Saída e Download 
+    # 5. Saída e Download 
     
     try:
         buffer = io.BytesIO()
@@ -182,10 +212,10 @@ if st.button("🌟 Gerar e Baixar Partitura Completa"):
         st.download_button(
             label="Download do PDF Final",
             data=buffer, 
-            file_name=f"{titulo.replace(' ', '_')}.pdf",
+            file_name="Partituras_Multiplas.pdf",
             mime="application/pdf"
         )
-        st.success("✅ Partitura gerada com sucesso! Clique no botão de download acima.")
+        st.success("✅ Partituras geradas com sucesso! Clique no botão de download acima.")
 
     except Exception as e:
         st.error(f"Erro ao gerar o download: {e}")
